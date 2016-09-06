@@ -140,7 +140,7 @@ struct DatagramHeaderFormat
 			sizeof(float)*1;
 	}
 
-	void Serialize(RakNet::BitStream *b)
+	void SerializeHeader(RakNet::BitStream *b)
 	{
 		// Not endian safe
 		//		RakAssert(GetDataHeaderByteLength()==sizeof(DatagramHeaderFormat));
@@ -1819,8 +1819,8 @@ void ReliabilityLayer::Update( RakNetSocket2 *s, SystemAddress &systemAddress, i
 		dhfNAK.isNAK=true;
 		dhfNAK.isACK=false;
 		dhfNAK.isPacketPair=false;
-		dhfNAK.Serialize(&updateBitStream);
-		NAKs.Serialize(&updateBitStream, GetMaxDatagramSizeExcludingMessageHeaderBits(), true);
+		dhfNAK.SerializeHeader(&updateBitStream);
+		NAKs.SerializeHeader(&updateBitStream, GetMaxDatagramSizeExcludingMessageHeaderBits(), true);
 		SendBitStream( s, systemAddress, &updateBitStream, rnr, time );
 	}
 
@@ -2165,7 +2165,7 @@ void ReliabilityLayer::Update( RakNetSocket2 *s, SystemAddress &systemAddress, i
 			dhf.sourceSystemTime=RakNet::GetTimeUS();
 #endif
 			updateBitStream.Reset();
-			dhf.Serialize(&updateBitStream);
+			dhf.SerializeHeader(&updateBitStream);
 			CC_DEBUG_PRINTF_2("S%i ",dhf.datagramNumber.val);
 
 			while (msgIndex < msgTerm)
@@ -2764,6 +2764,12 @@ InternalPacket* ReliabilityLayer::CreateInternalPacketFromBitStream( RakNet::Bit
 		(hasSplitPacket && (internalPacket->splitPacketIndex >= internalPacket->splitPacketCount)))
 	{
 		// If this assert hits, encoding is garbage
+		RakAssert(readSuccess);
+		RakAssert(internalPacket->dataBitLength != 0);
+		RakAssert(internalPacket->reliability < NUMBER_OF_RELIABILITIES);
+		RakAssert(internalPacket->orderingChannel < 32);
+		RakAssert(internalPacket->splitPacketIndex < internalPacket->splitPacketCount);
+		RakAssert(!hasSplitPacket);
 		RakAssert("Encoding is garbage" && 0);
 		ReleaseToInternalPacketPool( internalPacket );
 		return 0;
@@ -3644,9 +3650,9 @@ void ReliabilityLayer::SendACKs(RakNetSocket2 *s, SystemAddress &systemAddress, 
 #endif
 		//		dhf.B=(float)B;
 		updateBitStream.Reset();
-		dhf.Serialize(&updateBitStream);
+		dhf.SerializeHeader(&updateBitStream);
 		CC_DEBUG_PRINTF_1("AckSnd ");
-		acknowlegements.Serialize(&updateBitStream, maxDatagramPayload, true);
+		acknowlegements.SerializeHeader(&updateBitStream, maxDatagramPayload, true);
 		SendBitStream( s, systemAddress, &updateBitStream, rnr, time );
 		congestionManager.OnSendAck(time,updateBitStream.GetNumberOfBytesUsed());
 
